@@ -13,20 +13,18 @@
 
 import os
 import re
-from Car import Car
-from Cross import Cross
-from Road import Road
+from pojo import *
 
 class Reader(object):
 
-	def __init__(self, data_dir):
+	def __init__(self, car_file, cross_file, road_file):
 		"""
 		to get the list of cars, crosses and road
 		:param data_dir:
 		"""
-		self.__car_file = os.path.join(data_dir, 'car.txt')
-		self.__cross_file = os.path.join(data_dir, 'cross.txt')
-		self.__road_file = os.path.join(data_dir, 'road.txt')
+		self.__car_file = os.path.join('./', car_file)
+		self.__cross_file = os.path.join('./', cross_file)
+		self.__road_file = os.path.join('./', road_file)
 
 	def get_cars(self):
 		with open(self.__car_file, 'r') as file_car:
@@ -35,13 +33,13 @@ class Reader(object):
 			data_list = re.findall(pattern, content)
 			car_list = list()
 			for obj in data_list:
-				car_list.append(Car(obj[0], obj[1], obj[2], obj[3], obj[4]))
+				car_list.append(Car(obj[0], obj[1], obj[2], int(obj[3]), int(obj[4])))
 			return car_list
 
 	def get_crosses(self):
 		with open(self.__cross_file, 'r') as file_cross:
 			content = file_cross.read()
-			pattern = r'.*?([0-9]+).*?([0-9]+).*?([0-9]+).*?([0-9]+).*?([0-9]+).*?'
+			pattern = r'.*?([0-9]+).*?([0-9\-]+).*?([0-9\-]+).*?([0-9\-]+).*?([0-9\-]+).*?'
 			data_list = re.findall(pattern, content)
 			cross_list = list()
 			for obj in data_list:
@@ -56,10 +54,10 @@ class Reader(object):
 			data_list = re.findall(pattern, content)
 			road_list = list()
 			for obj in data_list:
-				road_list.append(Road(obj[0], obj[1], obj[2], obj[3], obj[4], obj[5], obj[6]))
+				road_list.append(Road(obj[0], int(obj[1]), int(obj[2]), int(obj[3]), obj[4], obj[5], obj[6]))
 			return road_list
 
 if __name__ == '__main__':
-	reader = Reader('../config')
-	for car in reader.get_cars():
-		print(car)
+	reader = Reader('../config/car.txt', '../config/cross.txt', '../config/road.txt', )
+	for obj in reader.get_roads():
+		print(obj)

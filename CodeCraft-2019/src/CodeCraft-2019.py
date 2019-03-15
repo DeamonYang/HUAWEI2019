@@ -1,10 +1,11 @@
 import logging
 import sys
 
-from Reader import Reader
+from reader import Reader
+from dispatcher import Dispatcher
 
 logging.basicConfig(level=logging.DEBUG,
-                    filename='../logs/CodeCraft-2019.log',
+                    filename='../../logs/CodeCraft-2019.log',
                     format='[%(asctime)s] %(levelname)s [%(funcName)s: %(filename)s, %(lineno)d] %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S',
                     filemode='a')
@@ -26,12 +27,22 @@ def main():
     logging.info("answer_path is %s" % (answer_path))
 
     # to read input file
-    reader = Reader('../config')
-
+    reader = Reader(car_path, cross_path, road_path)
+    car_list = reader.get_cars()
+    road_list = reader.get_roads()
+    cross_list = reader.get_crosses()
+    # for car in car_list:
+    #     print(car)
+    # for road in road_list:
+    #     print(road)
+    # for cross in cross_list:
+    #     print(cross)
 
     # process
-
-
+    dispatcher = Dispatcher(car_list, road_list, cross_list)
+    result = dispatcher.run()
+    for path in result:
+        print(path)
     # to write output file
 
 
