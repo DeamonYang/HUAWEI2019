@@ -85,9 +85,9 @@ class Graph(object):
 		return trace_cross_list
 
 
-from reader import Reader
-if __name__ == "__main__":
-	reader = Reader('../config')
-	graph = Graph(reader.get_roads(), reader.get_crosses())
-	trace_list = graph.get_min_trace('15', '35')
-	print('trace:', trace_list)
+# from reader import Reader
+# if __name__ == "__main__":
+# 	reader = Reader('../config')
+# 	graph = Graph(reader.get_roads(), reader.get_crosses())
+# 	trace_list = graph.get_min_trace('15', '35')
+# 	print('trace:', trace_list)

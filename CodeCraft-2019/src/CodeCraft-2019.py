@@ -42,8 +42,8 @@ def main():
     # process
     dispatcher = Dispatcher(car_list, road_list, cross_list)
     schedule_list = dispatcher.run()
-    for schedule in schedule_list:
-        print(schedule)
+    # for schedule in schedule_list:
+    #     print(schedule)
 
     # to write output file
     saver = Saver(answer_path, schedule_list)
