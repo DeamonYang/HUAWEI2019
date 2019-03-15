@@ -3,6 +3,7 @@ import sys
 
 from reader import Reader
 from dispatcher import Dispatcher
+from saver import Saver
 
 logging.basicConfig(level=logging.DEBUG,
                     filename='../../logs/CodeCraft-2019.log',
@@ -40,11 +41,13 @@ def main():
 
     # process
     dispatcher = Dispatcher(car_list, road_list, cross_list)
-    result = dispatcher.run()
-    for path in result:
-        print(path)
-    # to write output file
+    schedule_list = dispatcher.run()
+    for schedule in schedule_list:
+        print(schedule)
 
+    # to write output file
+    saver = Saver(answer_path, schedule_list)
+    saver.save()
 
 if __name__ == "__main__":
     main()

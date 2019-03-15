@@ -78,3 +78,18 @@ class Road(object):
 		           + self.road_from + ','
 		           + self.road_to + ','
 		           + self.road_isDuplex + ')')
+
+class Schedule(object):
+
+	def __init__(self, car, road_list):
+		self.road_list = road_list
+		self.car = car
+
+	def __str__(self):
+		roadIds = ''
+		for road in self.road_list:
+			roadIds = roadIds + road.road_id + ','
+		roadIds = roadIds[:-1]
+		return str('(' + self.car.car_id + ',' + str(self.car.car_planTime)+ ','  + roadIds +')')
+
+

@@ -11,6 +11,7 @@
 --------------------------------------------------------  
 '''
 from graph import Graph
+from pojo import Schedule
 
 
 class Dispatcher(object):
@@ -33,14 +34,15 @@ class Dispatcher(object):
 				self.__crossIds_to_road[crossIds] = road
 
 	def run(self):
-		result = list()
+		schedule_list = list()
 		for car in self.__car_list:
 			cross_id_from = car.car_from
 			cross_id_to = car.car_to
 			cross_list = self.__gragh.get_min_trace(cross_id_from, cross_id_to)
-			road_id_list = list()
+			road_list = list()
 			for index in range(len(cross_list) - 1):
 				crossIds = cross_list[index].cross_id + '_' + cross_list[index+1].cross_id
-				road_id_list.append(self.__crossIds_to_road[crossIds].road_id)
-			result.append(road_id_list)
-		return result
+				road_list.append(self.__crossIds_to_road[crossIds])
+			schedule = Schedule(car, road_list)
+			schedule_list.append(schedule)
+		return schedule_list
