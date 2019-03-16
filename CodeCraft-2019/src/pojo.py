@@ -90,7 +90,7 @@ class Schedule(object):
 		roadIds = ''
 		for index in range(len(self.road_list) - 1):
 			roadIds += self.road_list[index].road_id + ','
-		roadIds += roadIds[-1]
+		roadIds += self.road_list[-1].road_id
 		return str('(' + self.car.car_id + ',' + str(self.start_time)+ ','  + roadIds +')')
 
 
