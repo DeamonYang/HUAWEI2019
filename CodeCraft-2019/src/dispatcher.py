@@ -35,6 +35,7 @@ class Dispatcher(object):
 
 	def run(self):
 		schedule_list = list()
+		counter = 0
 		for car in self.__car_list:
 			cross_id_from = car.car_from
 			cross_id_to = car.car_to
@@ -43,6 +44,7 @@ class Dispatcher(object):
 			for index in range(len(cross_list) - 1):
 				crossIds = cross_list[index].cross_id + '_' + cross_list[index+1].cross_id
 				road_list.append(self.__crossIds_to_road[crossIds])
-			schedule = Schedule(car, road_list)
+			schedule = Schedule(car, car.car_planTime + counter, road_list)
 			schedule_list.append(schedule)
+			counter += 1
 		return schedule_list

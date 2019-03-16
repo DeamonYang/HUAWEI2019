@@ -81,15 +81,16 @@ class Road(object):
 
 class Schedule(object):
 
-	def __init__(self, car, road_list):
+	def __init__(self, car, start_time, road_list):
 		self.road_list = road_list
 		self.car = car
+		self.start_time = start_time
 
 	def __str__(self):
 		roadIds = ''
-		for road in self.road_list:
-			roadIds = roadIds + road.road_id + ','
-		roadIds = roadIds[:-1]
-		return str('(' + self.car.car_id + ',' + str(self.car.car_planTime)+ ','  + roadIds +')')
+		for index in range(len(self.road_list) - 1):
+			roadIds += self.road_list[index].road_id + ','
+		roadIds += roadIds[-1]
+		return str('(' + self.car.car_id + ',' + str(self.start_time)+ ','  + roadIds +')')
 
 
