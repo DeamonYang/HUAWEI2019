@@ -44,7 +44,7 @@ class Dispatcher(object):
 			for index in range(len(cross_list) - 1):
 				crossIds = cross_list[index].cross_id + '_' + cross_list[index+1].cross_id
 				road_list.append(self.__crossIds_to_road[crossIds])
-			schedule = Schedule(car, car.car_planTime + counter / 5, road_list)
+			schedule = Schedule(car, car.car_planTime + counter // 5, road_list)
 			schedule_list.append(schedule)
 			counter += 1
 		return schedule_list
