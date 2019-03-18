@@ -12,6 +12,8 @@ from saver import Saver
 #                     filemode='a')
 
 
+
+
 def main():
     if len(sys.argv) != 5:
         # logging.info('please input args: car_path, road_path, cross_path, answerPath')
@@ -33,8 +35,7 @@ def main():
     road_list = reader.get_roads()
     cross_list = reader.get_crosses()
     print("read finished")
-    # for car in car_list:
-    #     print(car)
+
     # for road in road_list:
     #     print(road)
     # for cross in cross_list:

@@ -31,6 +31,11 @@ class Car(object):
 		           + str(self.car_speed) + ','
 		           + str(self.car_planTime) + ')')
 
+	def get_speed(self):
+		return self.car_speed
+
+	def get_planTime(self):
+		return self.car_planTime
 
 
 class Cross(object):
