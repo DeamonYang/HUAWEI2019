@@ -31,7 +31,7 @@ class Graph(object):
 			cross = self.__cross_list[index]
 			self.__crossId_to_index[cross.cross_id] = index
 
-		# 初始化距离矩阵D和路径矩阵P，D用于存储最短路径值，P保存路径所经过的节点
+		# 初始化距离矩阵D（邻接矩阵，保持不变）和路径矩阵P，D用于存储最短路径值，P保存路径所经过的节点
 		self.__D = np.array([MAX_INT32] * (self.__cross_count * self.__cross_count), dtype='int32')
 		self.__D = self.__D.reshape(-1, self.__cross_count)
 		for i in range(self.__cross_count):
@@ -44,6 +44,8 @@ class Graph(object):
 				self.__D[cross_to_index, cross_from_index] = road.road_length
 		# print('map:\n',self.__D.tolist())
 
+		self.__crossIds_to_trace = {}       # 'crossidfrom_crossidto':[cross1, cross2, ...]
+
 	# Dijkstra
 	def get_min_trace(self, cross_id_from, cross_id_to):
 		"""
@@ -55,6 +57,10 @@ class Graph(object):
 		index_to = self.__crossId_to_index[cross_id_to]
 		# print('from:{},to:{}'.format(index_from, index_to))
 
+		crossIds = cross_id_from + '_' + cross_id_to
+		if crossIds in self.__crossIds_to_trace.keys():
+			return self.__crossIds_to_trace[crossIds]
+
 		distance_list = self.__D[index_from].tolist()   # 存储起点到各节点最短路径值
 		unvisited_distance_list = distance_list.copy()  # 存储最短距离，已访问的节点设为无穷大
 		unvisited_distance_list[index_from] = MAX_INT32
@@ -65,6 +71,8 @@ class Graph(object):
 		while min_unvisited_distance != MAX_INT32:
 			# print('min_unvisited_distance,', min_unvisited_distance)
 			index_of_min = unvisited_distance_list.index(min_unvisited_distance)
+			if index_of_min == index_to:
+				break
 			for index in range(self.__cross_count):
 				if distance_list[index] > min_unvisited_distance + self.__D[index_of_min][index]:
 					distance_list[index] = min_unvisited_distance + self.__D[index_of_min][index]
@@ -82,6 +90,7 @@ class Graph(object):
 			index_previous = path_list[index_previous]
 		trace_cross_list.extend([self.__cross_list[index_previous], self.__cross_list[index_from]])
 		trace_cross_list.reverse()
+		self.__crossIds_to_trace[crossIds] = trace_cross_list
 		return trace_cross_list
 
 
