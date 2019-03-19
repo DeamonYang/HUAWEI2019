@@ -13,6 +13,7 @@
 from graph import Graph
 from pojo import Schedule
 from pojo import Car
+import random
 
 class Dispatcher(object):
 
@@ -55,17 +56,6 @@ class Dispatcher(object):
 				schedule = Schedule(car, i + car.car_planTime, road_list)
 				schedule_list.append(schedule)
 			i += 1
-		# for car in self.__car_list:
-		# 	cross_id_from = car.car_from
-		# 	cross_id_to = car.car_to
-		# 	cross_list = self.__gragh.get_min_trace(cross_id_from, cross_id_to)
-		# 	road_list = list()
-		# 	for index in range(len(cross_list) - 1):
-		# 		crossIds = cross_list[index].cross_id + '_' + cross_list[index+1].cross_id
-		# 		road_list.append(self.__crossIds_to_road[crossIds])
-		# 	schedule = Schedule(car, car.car_planTime + counter // 10, road_list)
-		# 	schedule_list.append(schedule)
-		# 	counter += 1
 		return schedule_list
 
 	def __sort_cars(self):
@@ -81,7 +71,11 @@ class Dispatcher(object):
 		key_list = list(self.__carSpeed_to_cars.keys())
 		key_list.sort(reverse=True)
 		for key in key_list:
+			random.shuffle(self.__carSpeed_to_cars[key])
 			self.__carSpeed_to_cars[key].sort(key=Car.get_planTime, reverse=False)
 			for car in self.__carSpeed_to_cars[key]:
 				car_list_sorted.append(car)
+				# print(car)
 		self.__car_list = car_list_sorted
+
+
