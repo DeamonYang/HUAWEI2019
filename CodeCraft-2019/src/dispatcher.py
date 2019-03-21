@@ -13,7 +13,6 @@
 from graph import Graph
 from pojo import Schedule
 from pojo import Car
-import random
 
 class Dispatcher(object):
 
@@ -23,6 +22,9 @@ class Dispatcher(object):
 		self.__road_list = road_list
 		self.__cross_list = cross_list
 
+		self.__crossId_to_sorted_cars = {}  # 起点对应的按车速和安排排好序的车辆列表
+		for cross in self.__cross_list:
+			self.__crossId_to_sorted_cars[cross.cross_id] = []
 		self.__sort_cars()
 
 		self.__gragh = Graph(self.__road_list, self.__cross_list)
@@ -35,16 +37,18 @@ class Dispatcher(object):
 				crossIds = road.road_to + '_' + road.road_from
 				self.__crossIds_to_road[crossIds] = road
 
+		self.__car_number_each_time = 20
+
+
 	def run(self):
 		schedule_list = list()
-		car_number_each_time = 15
 
 		i = 0   # schedule_counter
-		while i < len(self.__car_list) // car_number_each_time:
-			if i + 1 == len(self.__car_list) // car_number_each_time:
-				running_cars = self.__car_list[car_number_each_time * i : ]
+		while i < len(self.__car_list) // self.__car_number_each_time:
+			if i + 1 == len(self.__car_list) // self.__car_number_each_time:
+				running_cars = self.__car_list[self.__car_number_each_time * i : ]
 			else:
-				running_cars = self.__car_list[car_number_each_time * i : car_number_each_time * (i + 1)]
+				running_cars = self.__car_list[self.__car_number_each_time * i : self.__car_number_each_time * (i + 1)]
 			for car in running_cars:
 				cross_id_from = car.car_from
 				cross_id_to = car.car_to
@@ -67,15 +71,27 @@ class Dispatcher(object):
 				self.__carSpeed_to_cars[str(car.car_speed)].append(car)
 			else:
 				self.__carSpeed_to_cars[str(car.car_speed)] = [car]
-		# 按安排的时间进行升序排序
+
 		key_list = list(self.__carSpeed_to_cars.keys())
-		key_list.sort(reverse=True)
+		key_list.sort(reverse=True) # 按安排的时间进行升序排序
 		for key in key_list:
-			random.shuffle(self.__carSpeed_to_cars[key])
-			self.__carSpeed_to_cars[key].sort(key=Car.get_planTime, reverse=False)
+			self.__carSpeed_to_cars[key].sort(key=Car.get_planTime, reverse=False)  # 按速度排序
 			for car in self.__carSpeed_to_cars[key]:
-				car_list_sorted.append(car)
-				# print(car)
+				self.__crossId_to_sorted_cars[car.car_from].append(car)
+		sorted_cars_matrix = list(self.__crossId_to_sorted_cars.values())
+
+		car_number = len(self.__car_list)
+		car_counter  = 0
+		j = 0                                           # j is col index of 'sorted_cars_matrix'
+		while car_counter < car_number:
+			for i in range(len(sorted_cars_matrix)):    # i is row index of 'sorted_cars_matrix'
+				if j < len(sorted_cars_matrix[i]):
+					car_list_sorted.append(sorted_cars_matrix[i][j])
+					car_counter += 1
+			j += 1
 		self.__car_list = car_list_sorted
+		# for car in self.__car_list:
+		# 	print(car)
+		# print(len(self.__cross_list)) 64
 
 
