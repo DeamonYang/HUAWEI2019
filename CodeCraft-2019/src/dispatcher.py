@@ -37,7 +37,7 @@ class Dispatcher(object):
 				crossIds = road.road_to + '_' + road.road_from
 				self.__crossIds_to_road[crossIds] = road
 
-		self.__car_number_each_time = 20
+		self.__car_number_each_time = 17
 
 
 	def run(self):

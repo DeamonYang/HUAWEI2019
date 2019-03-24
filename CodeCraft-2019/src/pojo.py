@@ -23,6 +23,7 @@ class Car(object):
 		self.car_to = car_to
 		self.car_speed = car_speed
 		self.car_planTime = car_planTime
+		self.is_waiting = False     # false means terminal, ture means waiting.
 
 	def __str__(self):
 		return str('(' + self.car_id + ','
@@ -46,17 +47,15 @@ class Cross(object):
 	             cross_road_id_3,
 	             cross_road_id_4):
 		self.cross_id = cross_id
-		self.cross_road_id_1 = cross_road_id_1
-		self.cross_road_id_2 = cross_road_id_2
-		self.cross_road_id_3 = cross_road_id_3
-		self.cross_road_id_4 = cross_road_id_4
+		self.cross_id_list = [cross_road_id_1, cross_road_id_2, cross_road_id_3, cross_road_id_4]
+		self.waiting_car_list = [[], [], [], []]
 
 	def __str__(self):
 		return str('(' + self.cross_id + ','
-		           + self.cross_road_id_1 + ','
-		           + self.cross_road_id_2 + ','
-		           + self.cross_road_id_3 + ','
-		           + self.cross_road_id_4 + ')')
+		           + self.cross_id_list[0] + ','
+		           + self.cross_id_list[1] + ','
+		           + self.cross_id_list[2] + ','
+		           + self.cross_id_list[3] + ')')
 
 class Road(object):
 
@@ -74,6 +73,15 @@ class Road(object):
 		self.road_from = road_from
 		self.road_to = road_to
 		self.road_isDuplex = road_isDuplex
+
+		# 初始化道路的车位列表
+		self.road_pos = []      # 正方向的车道
+		self.road_neg = []      # 反方向的车道
+		for index in range(self.road_channel):
+			self.road_pos.append(list())
+		if self.road_isDuplex:
+			for index in range(self.road_channel):
+				self.road_neg.append(list())
 
 	def __str__(self):
 		return str('(' + self.road_id + ','
