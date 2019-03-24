@@ -21,7 +21,7 @@ class Saver(object):
 	def save(self):
 		with open(self.__answer_file, 'w', encoding='utf-8') as answer_file:
 			lines = list()
-			lines.append('#(carId,StartTime,RoadId1,RoadId2...)')
+			lines.append('#(carId,StartTime,RoadId1,RoadId2...)\n')
 			for schedule in self.__schedule_list:
 				lines.append(str(schedule)+'\n')
 			answer_file.writelines(lines)

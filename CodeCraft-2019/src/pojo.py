@@ -35,7 +35,7 @@ class Car(object):
 	def get_speed(self):
 		return self.car_speed
 
-	def get_planTime(self):
+	def get_planTime(self):     # for sort
 		return self.car_planTime
 
 
@@ -106,4 +106,5 @@ class Schedule(object):
 		roadIds += self.road_list[-1].road_id
 		return str('(' + self.car.car_id + ',' + str(self.start_time)+ ','  + roadIds +')')
 
-
+	def get_start_time(self):   # for sort
+		return self.start_time
