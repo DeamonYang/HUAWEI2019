@@ -38,6 +38,12 @@ class Car(object):
 	def get_planTime(self):     # for sort
 		return self.car_planTime
 
+	def get_Id(self):       # for sort
+		return self.car_id
+
+
+
+
 
 class Cross(object):
 
@@ -47,15 +53,28 @@ class Cross(object):
 	             cross_road_id_3,
 	             cross_road_id_4):
 		self.cross_id = cross_id
-		self.cross_id_list = [cross_road_id_1, cross_road_id_2, cross_road_id_3, cross_road_id_4]
-		self.waiting_car_list = [[], [], [], []]
+		self.road_id_list = [cross_road_id_1, cross_road_id_2, cross_road_id_3, cross_road_id_4]
+		self.waiting_car_list = [[], [], [], []]        # cross buffer
 
 	def __str__(self):
 		return str('(' + self.cross_id + ','
-		           + self.cross_id_list[0] + ','
-		           + self.cross_id_list[1] + ','
-		           + self.cross_id_list[2] + ','
-		           + self.cross_id_list[3] + ')')
+		           + self.road_id_list[0] + ','
+		           + self.road_id_list[1] + ','
+		           + self.road_id_list[2] + ','
+		           + self.road_id_list[3] + ')')
+	def sort_waiting_car_list(self):
+		for i in range(4):
+			self.waiting_car_list[i].sort(key=Car.get_Id)
+		# 	print("******************************")
+		# 	for car in self.waiting_car_list[i]:
+		# 		print(car)
+		# print("================================")
+
+
+
+
+
+
 
 class Road(object):
 
@@ -91,6 +110,11 @@ class Road(object):
 		           + self.road_from + ','
 		           + self.road_to + ','
 		           + self.road_isDuplex + ')')
+
+
+
+
+
 
 class Schedule(object):
 
