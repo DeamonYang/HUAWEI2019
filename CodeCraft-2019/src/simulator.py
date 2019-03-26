@@ -11,65 +11,128 @@
 --------------------------------------------------------  
 ''' 
 
-import queue
-q = queue.Queue
+from pojo import Schedule
 
 class Simulator(object):
-
-
+	""" the simulator of car running system	"""
 	def __init__(self, car_list, road_list, cross_list, schedule_list):
 
 		self.__car_list = car_list
-		self.__road_list = road_list
-		self.__cross_list = cross_list
-		self.__schedule_list = schedule_list    # the result of the dispatcher
-		self.__schedule_time = 0                # the schadule time
-		self.__total_time = 0               # total run time of all cars
-		self.__car_arrived_list = []        # the cars arrived
+		self.__road_dict = {}
+		for road in road_list:
+			self.__road_dict[road.road_id] = road
 
-		self.__startTime_to_schedules = {}      # classify schedule by start time
-		for schedule in self.__schedule_list:
-			if str(schedule.start_time) not in self.__startTime_to_schedules.keys():
-				self.__startTime_to_schedules[str(schedule.start_time)] = []
-			self.__startTime_to_schedules[str(schedule.start_time)].append(schedule)
+		# the schadule time
+		self.__sys_clock = 0
 
-		self.__crossId_to_cross = {}        # the mapping of cross id to cross
-		for cross in self.__cross_list:
-			self.__crossId_to_cross[cross.cross_id] = cross
+		# total run time of all cars
+		self.__total_time = 0
+
+		# the cars arrived
+		self.__arrived_list = []
+
+		# the mapping of cross id to cross
+		self.__cross_dict = {}
+		for cross in cross_list:
+			self.__cross_dict[cross.cross_id] = cross
+
+		# classify schedule by start time
+		self.__schedule_dict = {}
+		for schedule in schedule_list:
+			if str(schedule.start_time) not in self.__schedule_dict.keys():
+				self.__schedule_dict[str(schedule.start_time)] = []
+			self.__schedule_dict[str(schedule.start_time)].append(schedule)
+		for k in self.__schedule_dict.keys():   # sort schedule list by car id
+			self.__schedule_dict[k].sort(key=Schedule.get_car_id)
 
 
 	def run(self):
-		while len(self.__car_arrived_list) != len(self.__car_list):
-			self.__add_waiting_cars_to_cross()
-			self.__go_forward()
-			self.__schedule_time += 1
-			print('time:{},arrived count:{}'.format(self.__schedule_time, len(self.__car_arrived_list)))
+		while len(self.__arrived_list) != len(self.__car_list):
+
+			self.__run_cars_in_road()
+
+			self.__push_cars_to_road_from_queue()
+
+			self.__add_waiting_cars_to_queue()
+
+			self.__sys_clock += 1
+
+			print('time:{},arrived count:{}'.format(self.__sys_clock, len(self.__arrived_list)))
+
+		for v in self.__cross_dict.values():
+			v.print_waiting_queue()
+		pass
 
 
-	def __add_waiting_cars_to_cross(self):
+	def __run_cars_in_road(self):
+		# for (/ * 按时间片处理 * /) {
+		# 	while (/ * all car in road run into end state * /){
+		# 		foreach(roads) {
+		# 			/ * 调整所有道路上在道路上的车辆，让道路上车辆前进，只要不出路口且可以到达终止状态的车辆
+		# 			* 分别标记出来等待的车辆（要出路口的车辆，或者因为要出路口的车辆阻挡而不能前进的车辆）
+		# 			* 和终止状态的车辆（在该车道内可以经过这一次调度可以行驶其最大可行驶距离的车辆） * /
+		# 			driveAllCarJustOnRoadToEndState(allChannle); / * 对所有车道进行调整 * /
+		#
+		# 			/ * driveAllCarJustOnRoadToEndState该处理内的算法与性能自行考虑 * /
+		# 		}
+		# 	}
+		#
+		# 	while (/ * all car in road run into end state * /){
+		# 		/ * driveAllWaitCar() * /
+		# 		foreach(crosses){
+		# 			foreach(roads){
+		# 				while (/ * wait car on the road * /){
+		# 					Direction dir = getDirection();
+		# 					Car car = getCarFromRoad(road, dir);
+		# 					if (conflict){
+		# 						break;
+		# 					}
+		#
+		# 					channle = car.getChannel();
+		# 					car.moveToNextRoad();
+		#
+		# 					/ *driveAllCarJustOnRoadToEndState该处理内的算法与性能自行考虑 * /
+		# 				   driveAllCarJustOnRoadToEndState(channel);
+		# 				}
+		# 			}
+		# 		}
+		# 	}
+		# }
+
+		# 遍历道路上车辆由第一排向最后一排进行遍历，确定每辆车的行驶状态
+		for road_id in self.__road_dict:
+			self.__road_dict[road_id].init_cars_status()
+
+		while False:# all cars become the end states
+			pass
+			# run the cars in road
+
+			# run cars which through cross
+
+
+		# start the cars which are waiting in mysterious park
+		for k in self.__cross_dict.keys():
+			pass
+
+
+	def __add_waiting_cars_to_queue(self):
 		"""add the cars to cross waiting areas-mysterious park"""
-		if str(self.__schedule_time + 1) in self.__startTime_to_schedules.keys():
+		if str(self.__sys_clock + 1) in self.__schedule_dict.keys():
 			# add car to cross buffer
-			for schedule in self.__startTime_to_schedules[str(self.__schedule_time + 1)]:
+			for schedule in self.__schedule_dict[str(self.__sys_clock + 1)]:
 				# 起点非终点
 				if len(schedule.road_list) > 0:
-					cross = self.__crossId_to_cross[schedule.car.car_from]
+					cross = self.__cross_dict[schedule.car.car_from]
 					road_id_0 = schedule.road_list[0].road_id               # id of the first road
 					road_index = cross.road_id_list.index(road_id_0)
-					self.__crossId_to_cross[schedule.car.car_from].waiting_car_list[road_index].append(schedule.car)
+					self.__cross_dict[schedule.car.car_from].waiting_list[road_index].put(schedule)
 				# 起点即终点
 				else:
-					self.__car_arrived_list.append(schedule.car)
-			# sort waiting buffer of each cross
-			for key in self.__crossId_to_cross.keys():
-				self.__crossId_to_cross[key].sort_waiting_car_list()
-
-	def __go_forward(self):
-
-		# run the cars in road
+					self.__arrived_list.append(schedule)
+				self.__arrived_list.append(schedule)
+		pass
 
 
-		# run the cars which are waiting in mysterious park
-
+	def __push_cars_to_road_from_queue(self):
 
 		pass

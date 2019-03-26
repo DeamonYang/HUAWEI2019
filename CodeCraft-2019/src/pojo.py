@@ -23,7 +23,9 @@ class Car(object):
 		self.car_to = car_to
 		self.car_speed = car_speed
 		self.car_planTime = car_planTime
-		self.is_waiting = False     # false means terminal, ture means waiting.
+
+		self.is_checked = False     # in this clock, false means unchecked, true means checked.
+		self.status = False         # in this clock, false means waiting , ture means terminal.
 
 	def __str__(self):
 		return str('(' + self.car_id + ','
@@ -44,6 +46,7 @@ class Car(object):
 
 
 
+import queue
 
 class Cross(object):
 
@@ -54,7 +57,7 @@ class Cross(object):
 	             cross_road_id_4):
 		self.cross_id = cross_id
 		self.road_id_list = [cross_road_id_1, cross_road_id_2, cross_road_id_3, cross_road_id_4]
-		self.waiting_car_list = [[], [], [], []]        # cross buffer
+		self.waiting_list = [queue.Queue(), queue.Queue(), queue.Queue(), queue.Queue()]        # cross buffer
 
 	def __str__(self):
 		return str('(' + self.cross_id + ','
@@ -62,18 +65,13 @@ class Cross(object):
 		           + self.road_id_list[1] + ','
 		           + self.road_id_list[2] + ','
 		           + self.road_id_list[3] + ')')
-	def sort_waiting_car_list(self):
-		for i in range(4):
-			self.waiting_car_list[i].sort(key=Car.get_Id)
-		# 	print("******************************")
-		# 	for car in self.waiting_car_list[i]:
-		# 		print(car)
-		# print("================================")
 
-
-
-
-
+	def print_waiting_queue(self):
+		for que in self.waiting_list:
+			print(' ********************* ')
+			while que.empty() != True:
+				print(que.get())
+		print('=================================')
 
 
 class Road(object):
@@ -93,14 +91,16 @@ class Road(object):
 		self.road_to = road_to
 		self.road_isDuplex = road_isDuplex
 
+		# self.are_cars_waiting = True
+
 		# 初始化道路的车位列表
-		self.road_pos = []      # 正方向的车道
-		self.road_neg = []      # 反方向的车道
+		self.roads_pos = []      # 正方向的车道矩阵，矩阵元素为schedule对象
+		self.roads_neg = []      # 反方向的车道，矩阵元素为schedule对象
 		for index in range(self.road_channel):
-			self.road_pos.append(list())
+			self.roads_pos.append([None] * road_length)
 		if self.road_isDuplex:
 			for index in range(self.road_channel):
-				self.road_neg.append(list())
+				self.roads_neg.append([None] * road_length)
 
 	def __str__(self):
 		return str('(' + self.road_id + ','
@@ -112,9 +112,45 @@ class Road(object):
 		           + self.road_isDuplex + ')')
 
 
+	def init_cars_status(self):
+		self.roads_pos = self.__init_cars_status(self.roads_pos)
+		self.roads_neg = self.__init_cars_status(self.roads_neg)
 
-
-
+	def __init_cars_status(self, roads):
+		"""设置该时刻车辆的初始状态
+		:param roads: [ [schedule, None, schedule, ...], [], [], ...]
+		:return: roads
+		"""
+		for road in roads:
+			for index in range(self.road_length):
+				if road[index] != None:         # 车道上该位置有车(调度对象)
+					v = min(road[index].car.car_speed, self.road_speed)
+					if index - v < 0:           # 过路口
+						road[index].car.status = False      # 过路口初始状态为等待状态
+					else:   # 不过路口
+						index_of_prev_car = None
+						for j in range(v):
+							if road[index - j - 1] != None:
+								index_of_prev_car = index - j - 1
+								break
+						if index_of_prev_car == None:   # 没有车阻挡,当前车前进v路程，并设置为终止状态
+							curr_schedule = road[index]
+							road[index] = None
+							road[index - v] = curr_schedule
+							road[index].car.status = True
+						else:   # 前方有车阻挡
+							if road[index_of_prev_car].car.status == True: # 阻挡车的状态为终止状态
+								# 前进到前方车辆的后面
+								curr_schedule = road[index]
+								road[index] = None
+								road[index_of_prev_car + 1] = curr_schedule
+							else:   # 阻挡车的状态为等待状态
+								# 原地等待
+								road[index].car.status = False
+					road[index].car.is_checked = True
+				else: # 车道上该位置無车(调度对象)，继续看下一个位置
+					continue
+		return roads
 
 class Schedule(object):
 
@@ -132,3 +168,6 @@ class Schedule(object):
 
 	def get_start_time(self):   # for sort
 		return self.start_time
+
+	def get_car_id(self):       # for sort
+		return self.car.car_id
