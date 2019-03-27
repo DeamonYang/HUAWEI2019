@@ -92,7 +92,6 @@ class Simulator(object):
 					unsolved_crosses_id_list.remove(cross_id)
 			# check deadlock begin
 			#
-			#
 			# check deadlock end
 
 	def __run_cars_by_cross(self, cross):
