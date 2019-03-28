@@ -272,9 +272,48 @@ class Road(object):
 
 	def remove_car_in_road(self, cross_id, lane_index, line_index):
 		if cross_id == self.road_to:
+			schedule = self.lanes_pos[lane_index][line_index]
 			self.lanes_pos[lane_index][line_index] = None
-		else:
+			return schedule
+		elif cross_id == self.road_from:
+			schedule = self.lanes_neg[lane_index][line_index]
 			self.lanes_neg[lane_index][line_index] = None
+			return schedule
+		else:
+			raise Exception('Error param corss id:{}.'.format(cross_id))
+
+	def add_car_in_road(self, cross_id, lane_index, line_index, schedule):
+		"""
+		添加通过路口的车辆或者从神奇车库出发的车
+		:param cross_id: 从该路口驶入车辆
+		:param lane_index:
+		:param line_index:
+		:param schedule:
+		:return:
+		"""
+		if cross_id == self.road_to:
+			self.lanes_neg[lane_index][line_index] = schedule
+		elif cross_id == self.road_from:
+			self.lanes_pos[lane_index][line_index] = schedule
+		else:
+			raise Exception('Error param corss id:{}.'.format(cross_id))
+
+	def move_appointed_car(self, cross_id, lane_index, line_index_from, line_index_to):
+		if cross_id == self.road_to:
+			schedule = self.lanes_pos[lane_index][line_index_from]
+			schedule.is_terminal = True
+			self.lanes_pos[lane_index][line_index_from] = None
+			self.lanes_pos[lane_index][line_index_to] = schedule
+		elif cross_id == self.road_from:
+			schedule = self.lanes_neg[lane_index][line_index_from]
+			schedule.is_terminal = True
+			self.lanes_neg[lane_index][line_index_from] = None
+			self.lanes_neg[lane_index][line_index_to] = schedule
+		else:
+			raise Exception('Error param corss id:{}.'.format(cross_id))
+
+	def push_cars_from_waiting_queue(self):
+		pass
 
 class Schedule(object):
 

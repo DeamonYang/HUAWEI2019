@@ -118,39 +118,61 @@ class Simulator(object):
 					if schedule != None:
 						# 当前道路最大车速
 						v_max_curr_road = min(schedule.car.car_speed, self.__road_dict[curr_road_id].road_speed)
-						# 可行车速大于当前道路剩余的路程，可能需要过路口
-						if line_index < v_max_curr_road:
-							# 获取下一条道路的对象
-							next_road = schedule.get_next_road()
-							# 前方路口为终点，不用通过路口
-							if next_road == None:
-								index_of_prev_car = self.__road_dict[curr_road_id].get_prev_car_index(
-									curr_cross.cross_id, lane_index, line_index
-								)
-								# 前方无车阻挡
-								if index_of_prev_car != None:
-									self.__road_dict[curr_road_id].remove_car_in_road(
-										curr_cross.cross_id, lane_index, line_index
-									)
-									# 抵达终点
-									self.__arrived_list.append(schedule)
-								# 前方有车阻挡
-								else:
-									self.__road_dict[curr_road_id].go_forward_in_curr_lane(
-										curr_cross.cross_id, lane_index, line_index
-									)
-							# 前方路口不是终点，可能需要通过路口
-							else:
-								# 下条路最大车速，用来参与决定该车是否可以过路口
-								v_max_next_road = min(schedule.car.car_speed, next_road.road_speed)
-
-						# 一定不需要过路口
-						else:
-							# 前进 v_max_curr_road 单位，或者停在前车后一个位置
-							self.__road_dict[curr_road_id].go_forward_in_curr_lane(
+						# 首先判断前方是否有车辆阻挡
+						# 获取前车位置
+						index_of_prev_car = self.__road_dict[curr_road_id].get_prev_car_index(
+							curr_cross.cross_id, lane_index, line_index, v_max_curr_road
+						)
+						# 前方有车阻挡
+						if index_of_prev_car != None:
+							# 此处不用关心前车的状态，因为是从最前排车开始调度，前排的车如果等待过马路会跳出调度该道路
+							schedule.is_terminal = True
+							self.__road_dict[curr_road_id].remove_car_in_road(
 								curr_cross.cross_id, lane_index, line_index
 							)
+							self.__road_dict[curr_road_id].add_car_in_road(
+								curr_cross.cross_id, lane_index, index_of_prev_car + 1, schedule
+							)
+						# 前方无车阻挡
+						else:
+							# 可行车速大于当前道路剩余的路程，可能需要过路口
+							if line_index < v_max_curr_road:
+								# 获取下一条道路的对象
+								next_road = schedule.get_next_road()
+								# 前方路口为终点，不用通过路口
+								if next_road == None:
+									index_of_prev_car = self.__road_dict[curr_road_id].get_prev_car_index(
+										curr_cross.cross_id, lane_index, line_index
+									)
+									# 前方无车阻挡
+									if index_of_prev_car != None:
+										self.__road_dict[curr_road_id].remove_car_in_road(
+											curr_cross.cross_id, lane_index, line_index
+										)
+										# 抵达终点
+										self.__arrived_list.append(schedule)
+									# 前方有车阻挡
+									else:
+										self.__road_dict[curr_road_id].go_forward_in_curr_lane(
+											curr_cross.cross_id, lane_index, line_index
+										)
+								# 前方路口不是终点，可能需要通过路口
+								else:
+									# 下条路可行车速，用来参与决定该车是否可以过路口
+									v_max_next_road = min(schedule.car.car_speed, next_road.road_speed)
+									# 下条道路可行车速比当前道路可行距离小，不通过路口
+									if v_max_next_road <
 
+							# 一定不需要过路口且无前车阻挡
+							else:
+								schedule.is_terminal = True
+								# 前进 v_max_curr_road 单位
+								self.__road_dict[curr_road_id].remove_car_in_road(
+									curr_cross.cross_id, lane_index, line_index
+								)
+								self.__road_dict[curr_road_id].add_car_in_road(
+									curr_cross.cross_id, lane_index, line_index - v_max_curr_road, schedule
+								)
 					# 该道路调度完成
 					else:
 						solved_road_id_list.append(curr_road_id)
