@@ -112,38 +112,45 @@ class Simulator(object):
 				while line_index != None:
 					# get the first waiting schedule
 					schedule, line_index, lane_index = self.__road_dict[curr_road_id].get_first_waiting_schedule(
-						curr_cross.cross_id, line_index, lane_index
+						curr_cross.cross_id, line_index
 					)
-					# 该道路调度未完成
+					# 该道路调度未完成，仍有等待行驶的车辆
 					if schedule != None:
 						# 当前道路最大车速
 						v_max_curr_road = min(schedule.car.car_speed, self.__road_dict[curr_road_id].road_speed)
-						# 可能需要过路口
+						# 可行车速大于当前道路剩余的路程，可能需要过路口
 						if line_index < v_max_curr_road:
 							# 获取下一条道路的对象
 							next_road = schedule.get_next_road()
-							# 抵达终点
+							# 前方路口为终点，不用通过路口
 							if next_road == None:
-								self.__arrived_list.append(schedule)
-							# 未抵达终点
+								index_of_prev_car = self.__road_dict[curr_road_id].get_prev_car_index(
+									curr_cross.cross_id, lane_index, line_index
+								)
+								# 前方无车阻挡
+								if index_of_prev_car != None:
+									self.__road_dict[curr_road_id].remove_car_in_road(
+										curr_cross.cross_id, lane_index, line_index
+									)
+									# 抵达终点
+									self.__arrived_list.append(schedule)
+								# 前方有车阻挡
+								else:
+									self.__road_dict[curr_road_id].go_forward_in_curr_lane(
+										curr_cross.cross_id, lane_index, line_index
+									)
+							# 前方路口不是终点，可能需要通过路口
 							else:
+								# 下条路最大车速，用来参与决定该车是否可以过路口
 								v_max_next_road = min(schedule.car.car_speed, next_road.road_speed)
 
-
-							pass
 						# 一定不需要过路口
 						else:
 							# 前进 v_max_curr_road 单位，或者停在前车后一个位置
-							if self.__road_dict[curr_road_id].road_from == curr_cross.cross_id:
-								lane = self.__road_dict[curr_road_id].lanes_neg[lane_index]
-								self.__road_dict[curr_road_id].lanes_neg[lane_index] = \
-									self.__road_dict[curr_road_id].go_forward_in_curr_lane(lane, line_index)
-							elif self.__road_dict[curr_road_id].road_to == curr_cross.cross_id:
-								lane = self.__road_dict[curr_road_id].lanes_pos[lane_index]
-								self.__road_dict[curr_road_id].lanes_pos[lane_index] = \
-									self.__road_dict[curr_road_id].go_forward_in_curr_lane(lane, line_index)
-							else:
-								raise Exception('Error param corss id:{}.'.format(curr_cross.cross_id))
+							self.__road_dict[curr_road_id].go_forward_in_curr_lane(
+								curr_cross.cross_id, lane_index, line_index
+							)
+
 					# 该道路调度完成
 					else:
 						solved_road_id_list.append(curr_road_id)

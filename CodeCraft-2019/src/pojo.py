@@ -224,21 +224,18 @@ class Road(object):
 		else:
 			raise Exception('Error param corss id:{}.'.format(cross_id))
 
-	def go_forward_in_curr_lane(self, lane, line_index):
+	def go_forward_in_curr_lane(self, cross_id, lane_index, line_index):
 		"""指定车辆前进,如果可能超出路口则停在路口
-		:param lane: 需要调整的车道，[schedule, None, schedule, ...]
-		:param line_index: 该车的起始位置,0~road_length-1
-		:return: 返回调整后的车道,[schedule, None, schedule, ...]
+		:param cross_id: 连接的路口id
+		:param lane_index: 车道的索引
+		:param line_index: 车的起始位置,0~road_length-1,指定调度的车
 		"""
+		lane = self.__get_lanes_list_by_cross_id(cross_id)[lane_index]
 		curr_schedule = lane[line_index]
 		# 车辆在该车道最大可行驶距离
 		s_max = min(curr_schedule.car.car_speed, self.road_speed, line_index)
 		# 获得前车位置
-		index_of_prev_car = None
-		for j in range(s_max):
-			if lane[line_index - j - 1] != None:
-				index_of_prev_car = line_index - j - 1
-				break
+		index_of_prev_car = self.get_prev_car_index(lane, line_index, s_max)
 		# 前方没有车阻挡,当前车前进v路程，并设置为终止状态
 		if index_of_prev_car == None:
 			lane[line_index] = None
@@ -256,8 +253,28 @@ class Road(object):
 			else:
 				# 原地等待
 				lane[line_index].is_terminal = False
-		return lane
+		# 保存变更记录
+		if cross_id == self.road_to:
+			self.lanes_pos[lane_index] = lane
+		else:
+			self.lanes_neg[lane_index] = lane
 
+	def get_prev_car_index(self, cross_id, lane_index, line_index, date_s):
+		date_s = min(line_index, date_s)
+		lane = self.__get_lanes_list_by_cross_id(cross_id)[lane_index]
+		# 获得前车位置
+		index_of_prev_car = None
+		for j in range(date_s):
+			if lane[line_index - j - 1] != None:
+				index_of_prev_car = line_index - j - 1
+				break
+		return index_of_prev_car
+
+	def remove_car_in_road(self, cross_id, lane_index, line_index):
+		if cross_id == self.road_to:
+			self.lanes_pos[lane_index][line_index] = None
+		else:
+			self.lanes_neg[lane_index][line_index] = None
 
 class Schedule(object):
 
