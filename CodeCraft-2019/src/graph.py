@@ -58,6 +58,7 @@ class Graph(object):
 		# print('from:{},to:{}'.format(index_from, index_to))
 
 		crossIds = cross_id_from + '_' + cross_id_to
+		# 查看缓冲区
 		if crossIds in self.__crossIds_to_trace.keys():
 			return self.__crossIds_to_trace[crossIds]
 
@@ -83,13 +84,14 @@ class Graph(object):
 			# print('distance_list', distance_list)
 		# print(path_list)
 
-		trace_cross_list = [ self.__cross_list[index_to] ]                       # 依次存储路线所经过的路口对象
+		trace_cross_list = [ self.__cross_list[index_to] ]  # 依次存储路线所经过的路口对象
 		index_previous = path_list[index_to]
 		while index_previous != path_list[index_previous]:
 			trace_cross_list.append(self.__cross_list[index_previous])
 			index_previous = path_list[index_previous]
 		trace_cross_list.extend([self.__cross_list[index_previous], self.__cross_list[index_from]])
 		trace_cross_list.reverse()
+		# 将计算结果存入缓冲区
 		self.__crossIds_to_trace[crossIds] = trace_cross_list
 		return trace_cross_list
 

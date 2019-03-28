@@ -25,7 +25,6 @@ class Car(object):
 		self.car_speed = car_speed
 		self.car_planTime = car_planTime
 
-		self.is_terminal = False         # false means waiting ,ture means terminal.
 
 	def __str__(self):
 		return str('(' + self.car_id + ','
@@ -61,19 +60,23 @@ class Cross(object):
 		           + self.road_id_list[2] + ','
 		           + self.road_id_list[3] + ')')
 
-	# def print_waiting_queue(self):
-	# 	for que in self.waiting_queue_dict:
-	# 		print(' ********************* ')
-	# 		while que.empty() != True:
-	# 			print(que.get())
-	# 	print('=================================')
-	#
-	# def push_schedule(self, road_id, schedule_obj):
-	# 	self.waiting_queue_dict[road_id].put(schedule_obj)
-	#
-	# def pop_schedule(self, road_id):
-	# 	schedule = self.waiting_queue_dict[road_id].get()
-	# 	return schedule
+	def get_sorted_road_id_list(self):
+		road_id_list_copy = self.road_id_list.copy()
+		road_id_list_copy.sort()
+		return road_id_list_copy
+
+	def get_direction(self, road_id_from, road_id_to):
+		"""
+		:param road_id_from: 与该路口相连的起始道路的id
+		:param road_id_to: 与该路口相连的目的道路的id
+		:return: 方向的代号,1代表左转，2代表直行，3代表右转，0代表掉头
+		"""
+		try:
+			dire = (self.road_id_list.index(road_id_to) - self.road_id_list.index(road_id_from)) % 4
+			return dire
+		except Exception as e:
+			raise Exception('Cross:{} has no road {} or {}'
+			                .format(self.cross_id, road_id_from, road_id_to))
 
 
 class Road(object):
@@ -95,7 +98,7 @@ class Road(object):
 
 		# 初始化道路的车位列表
 		self.lanes_pos = []      # 正方向的车道矩阵，矩阵元素为schedule对象
-		self.lanes_neg = []      # 反方向的车道，矩阵元素为schedule对象
+		self.lanes_neg = []      # 反方向的车道矩阵，矩阵元素为schedule对象
 		for index in range(self.road_channel):
 			self.lanes_pos.append([None] * road_length)
 		if self.road_isDuplex:
@@ -123,6 +126,7 @@ class Road(object):
 
 	def __init_cars_status(self, lanes_list):
 		"""设置该时刻指定车道上车辆的初始状态
+		如果可能过路口则设为等待，不过路口且无前车则设为停止，有前车看情况
 		:param roads: [ [schedule, None, schedule, ...], [], [], ...]
 		:return: roads
 		"""
@@ -130,11 +134,12 @@ class Road(object):
 			for index in range(self.road_length):
 				# 车道上该位置有车(调度对象)
 				if lane[index] != None:
+					curr_schedule = lane[index]
 					v = min(lane[index].car.car_speed, self.road_speed)
-					# 过路口
+					# 过路口(这里指的是当前道路不够该车行驶的情况,只考虑当前道路)
 					if index - v < 0:
 						# 初始状态为等待状态
-						lane[index].car.is_terminal = False
+						lane[index].is_terminal = False
 					# 不过路口
 					else:
 						# 获得前车位置
@@ -145,50 +150,71 @@ class Road(object):
 								break
 						# 前方没有车阻挡,当前车前进v路程，并设置为终止状态
 						if index_of_prev_car == None:
-							curr_schedule = lane[index]
 							lane[index] = None
 							lane[index - v] = curr_schedule
-							lane[index].car.is_terminal = True
+							lane[index - v].is_terminal = True
 						# 前方有车阻挡
 						else:
 							# 阻挡车的状态为终止状态
-							if lane[index_of_prev_car].car.is_terminal == True:
+							if lane[index_of_prev_car].is_terminal == True:
 								# 前进到前方车辆的后面
-								curr_schedule = lane[index]
 								lane[index] = None
 								lane[index_of_prev_car + 1] = curr_schedule
+								lane[index_of_prev_car + 1].is_terminal = True
 							# 阻挡车的状态为等待状态
 							else:
 								# 原地等待
-								lane[index].car.is_terminal = False
+								lane[index].is_terminal = False
 				# 车道上该位置無车(调度对象)，继续看下一个位置
 				else:
 					continue
 		return lanes_list
 
-	def is_solved(self, cross_id):
+	def are_cars_terminal(self, cross_id):
 		"""
 		检测每车道第一辆车的状态是否是终止状态
 		:param cross_id: 出路口的id，用来决定方向
 		:return: 全终止则返回True，否则False
 		"""
-		solved_flag = True
+		terminal_flag = True
 		lanes_list = self.__get_lanes_list_by_cross_id(cross_id)
 		# check first car's status of each road
 		for lane in lanes_list:
-			for car in lane:
-				if car != None:
-					if car.is_terminal == False:
-						solved_flag = False
+			for schedule in lane:
+				if schedule != None:
+					if schedule.is_terminal == False:
+						terminal_flag = False
 					break
-		return solved_flag
+		return terminal_flag
 
-	def has_empty_lane(self, cross_id):
+	def get_index_of_empty_lane(self, cross_id):
+		"""
+		获得可进入车道的索引
+		:param cross_id: 确定是正向还是反向
+		:return: 可进入车道的索引，如果均没有空车道则返回None
+		"""
 		lanes_list = self.__get_lanes_list_by_cross_id(cross_id)
-		for lane in lanes_list:
-			if lane[-1] == None:
-				return True
-		return False
+		for lane_index in range(len(lanes_list)):
+			if lanes_list[lane_index][-1] == None:
+				return lane_index
+		return None
+
+	def get_first_waiting_schedule(self, cross_id, line_index):
+		"""
+		get the first waiting schedule in this road
+		:param cross_id: to determin getting pos lanes or neg lanes
+		:param index: from which line of lane to search
+		:return: 1.the first waiting schedule
+			2. which line of the lanes
+			3. which lane of the road
+		"""
+		lanes_list = self.__get_lanes_list_by_cross_id(cross_id)
+		for i in range(line_index, self.road_length):
+			for j in range(self.road_channel):
+				if lanes_list[j][i] != None:
+					if not lanes_list[j][i].is_terminal:
+						return lanes_list[j][i], i, j
+		return None, None, None
 
 	def __get_lanes_list_by_cross_id(self, cross_id):
 		if cross_id == self.road_to:
@@ -198,6 +224,39 @@ class Road(object):
 		else:
 			raise Exception('Error param corss id:{}.'.format(cross_id))
 
+	def go_forward_in_curr_lane(self, lane, line_index):
+		"""指定车辆前进,如果可能超出路口则停在路口
+		:param lane: 需要调整的车道，[schedule, None, schedule, ...]
+		:param line_index: 该车的起始位置,0~road_length-1
+		:return: 返回调整后的车道,[schedule, None, schedule, ...]
+		"""
+		curr_schedule = lane[line_index]
+		# 车辆在该车道最大可行驶距离
+		s_max = min(curr_schedule.car.car_speed, self.road_speed, line_index)
+		# 获得前车位置
+		index_of_prev_car = None
+		for j in range(s_max):
+			if lane[line_index - j - 1] != None:
+				index_of_prev_car = line_index - j - 1
+				break
+		# 前方没有车阻挡,当前车前进v路程，并设置为终止状态
+		if index_of_prev_car == None:
+			lane[line_index] = None
+			lane[line_index - s_max] = curr_schedule
+			lane[line_index - s_max].is_terminal = True
+		# 前方有车阻挡
+		else:
+			# 阻挡车的状态为终止状态
+			if lane[index_of_prev_car].is_terminal == True:
+				# 前进到前方车辆的后面
+				lane[line_index] = None
+				lane[index_of_prev_car + 1] = curr_schedule
+				lane[index_of_prev_car + 1].is_terminal = True
+			# 阻挡车的状态为等待状态
+			else:
+				# 原地等待
+				lane[line_index].is_terminal = False
+		return lane
 
 
 class Schedule(object):
@@ -206,6 +265,10 @@ class Schedule(object):
 		self.road_list = road_list
 		self.car = car
 		self.start_time = start_time
+
+		# self.schedule_id = car.car_id
+		self.is_terminal = False  # false means waiting ,true means terminal.
+		self.curr_road_index = 0
 
 	def __str__(self):
 		roadIds = ''
@@ -219,3 +282,12 @@ class Schedule(object):
 
 	def get_car_id(self):       # for sort
 		return self.car.car_id
+
+	def get_next_road(self):
+		if self.curr_road_index + 1 < len(self.road_list):
+			return self.road_list[self.curr_road_index + 1]
+		else:
+			return None
+
+	def update_curr_road_index(self):
+		self.curr_road_index += 1

@@ -19,38 +19,41 @@ class Simulator(object):
 
 		self.__car_list = car_list
 		self.__road_dict = {}
+		# the mapping of road id to road
 		for road in road_list:
 			self.__road_dict[road.road_id] = road
-
-		# the schadule time
-		self.__sys_clock = 0
-
-		# total run time of all cars
-		self.__total_time = 0
-
-		# the cars arrived
-		self.__arrived_list = []
-
 		# the mapping of cross id to cross
 		self.__cross_dict = {}
 		for cross in cross_list:
 			self.__cross_dict[cross.cross_id] = cross
-
-		# classify schedule by start time
-		self.__schedule_dict = {}
+		# the mapping of car id to schedule
+		self.__schedule_list = {}
+		# the mapping of start time to carid-sorted schedule list
+		self.__startTime_schedule_dict = {}
 		for schedule in schedule_list:
-			if str(schedule.start_time) not in self.__schedule_dict.keys():
-				self.__schedule_dict[str(schedule.start_time)] = []
-			self.__schedule_dict[str(schedule.start_time)].append(schedule)
-		for k in self.__schedule_dict.keys():   # sort schedule list by car id
-			self.__schedule_dict[k].sort(key=Schedule.get_car_id)
-
+			self.__schedule_list[schedule.car.car_id] = schedule
+			if str(schedule.start_time) not in self.__startTime_schedule_dict.keys():
+				self.__startTime_schedule_dict[str(schedule.start_time)] = []
+			self.__startTime_schedule_dict[str(schedule.start_time)].append(schedule)
+		for k in self.__startTime_schedule_dict.keys():   # sort schedule list by car id
+			self.__startTime_schedule_dict[k].sort(key=Schedule.get_car_id)
+		# the schadule time
+		self.__sys_clock = 0
+		# total run time of all cars
+		self.__total_time = 0
+		# the cars arrived
+		self.__arrived_list = []
+		# the waiting relationship between to schedules which are the first waiting schedule of roads
+		# the key schedule wait for the value schedule
+		# if there is a waiting circle, the schedules have dead lock.
+		# shape => {car_id0:car_id1, ...}
+		self.__waiting_dict = {}
 
 	def run(self):
 		# 如果仍有车辆未到达终点
 		while len(self.__arrived_list) != len(self.__car_list):
 
-			self.__run_cars_in_road()
+			self.__run_cars_in_roads()
 
 			# start the cars which are waiting in mysterious park
 			self.__push_cars_to_road_from_queue()
@@ -65,43 +68,103 @@ class Simulator(object):
 		pass
 
 
-	def __run_cars_in_road(self):
+	def __run_cars_in_roads(self):
 
-		# 遍历道路上车辆由第一排向最后一排进行遍历，确定每辆车的行驶状态
+		# 遍历道路上车辆由第一排向最后一排进行遍历，初始化每辆车的行驶状态
 		for road_id in self.__road_dict:
 			self.__road_dict[road_id].init_cars_status()
 
-		# 获得未处理完路口的id，并升序排序
-		unsolved_crosses_id_list = list(self.__cross_dict.keys())
-		unsolved_crosses_id_list.sort()
-		# some cars are still in waiting status in map
-		while len(unsolved_crosses_id_list) > 0:
-			for cross_id in unsolved_crosses_id_list:
+		# 初始化车辆没跑完的路口的id列表，并升序排序
+		unterminal_crosses_id_list = list(self.__cross_dict.keys())
+		unterminal_crosses_id_list.sort()
+		# some crosses are still waiting
+		while len(unterminal_crosses_id_list) > 0:
+			terminal_crosses_id_list = []
+			for cross_id in unterminal_crosses_id_list:
 				# current cross to solve
 				curr_cross = self.__cross_dict[cross_id]
 				# move the cars which go to current cross
-				self.__run_cars_by_cross(curr_cross)
-				# check the status of cars which go to current cross
-				solved_flag = True
-				for road_id in curr_cross.road_id_list:
-					if not self.__road_dict[road_id].is_solved(cross_id):
-						solved_flag = False
-						break
-				# if the cars that go to current cross are terminal, the cross solved
-				if solved_flag:
-					unsolved_crosses_id_list.remove(cross_id)
+				terminal_flag = self.__run_cars_by_cross(curr_cross)
+				# if the cars that go to current cross are terminal, the cross become terminal
+				if terminal_flag:
+					# add cross_id to 'terminal_crosses_id_list'
+					terminal_crosses_id_list.append(cross_id)
+			# refresh 'unterminal_crosses_id_list'
+			unterminal_crosses_id_list = list(set(unterminal_crosses_id_list) - set(terminal_crosses_id_list))
 			# check deadlock begin
 			#
 			# check deadlock end
 
-	def __run_cars_by_cross(self, cross):
+	def __run_cars_by_cross(self, curr_cross):
 		"""
 		让路口等待的车辆通过路口，并且调整相关道路上车辆的行驶状态
 		:param cross: 当前路口对象
+		:return 返回当前路口是否处理完毕(朝当前入口驶入的车辆是否都到达终止状态)
 		"""
-		# run cars which through cross
+		# # 循环调度路口的道路
+		sorted_unsolved_road_id_list = curr_cross.get_sorted_road_id_list()
+		while len(sorted_unsolved_road_id_list) > 0:
+			# id of the roads whose cars are terminal or waiting the car which is in waiting status of next road
+			solved_road_id_list = []
+			for curr_road_id in sorted_unsolved_road_id_list:
+				# current road : self.__road_dict[road_id]
+				line_index, lane_index = 0, 0
+				while line_index != None:
+					# get the first waiting schedule
+					schedule, line_index, lane_index = self.__road_dict[curr_road_id].get_first_waiting_schedule(
+						curr_cross.cross_id, line_index, lane_index
+					)
+					# 该道路调度未完成
+					if schedule != None:
+						# 当前道路最大车速
+						v_max_curr_road = min(schedule.car.car_speed, self.__road_dict[curr_road_id].road_speed)
+						# 可能需要过路口
+						if line_index < v_max_curr_road:
+							# 获取下一条道路的对象
+							next_road = schedule.get_next_road()
+							# 抵达终点
+							if next_road == None:
+								self.__arrived_list.append(schedule)
+							# 未抵达终点
+							else:
+								v_max_next_road = min(schedule.car.car_speed, next_road.road_speed)
 
-		# run the cars in road
+
+							pass
+						# 一定不需要过路口
+						else:
+							# 前进 v_max_curr_road 单位，或者停在前车后一个位置
+							if self.__road_dict[curr_road_id].road_from == curr_cross.cross_id:
+								lane = self.__road_dict[curr_road_id].lanes_neg[lane_index]
+								self.__road_dict[curr_road_id].lanes_neg[lane_index] = \
+									self.__road_dict[curr_road_id].go_forward_in_curr_lane(lane, line_index)
+							elif self.__road_dict[curr_road_id].road_to == curr_cross.cross_id:
+								lane = self.__road_dict[curr_road_id].lanes_pos[lane_index]
+								self.__road_dict[curr_road_id].lanes_pos[lane_index] = \
+									self.__road_dict[curr_road_id].go_forward_in_curr_lane(lane, line_index)
+							else:
+								raise Exception('Error param corss id:{}.'.format(curr_cross.cross_id))
+					# 该道路调度完成
+					else:
+						solved_road_id_list.append(curr_road_id)
+
+
+				conflict = False
+				if conflict or line_index == None:
+					solved_road_id_list.append(road_id)
+
+			sorted_unsolved_road_id_list = list(set(sorted_unsolved_road_id_list) - set(solved_road_id_list))
+
+
+
+		# check the status of cars which go to current cross
+		# if all cars in the 4 roads become terminal ,return true. If not, return False
+		terminal_flag = True
+		for road_id in curr_cross.road_id_list:
+			if not self.__road_dict[road_id].are_cars_terminal(curr_cross.cross_id):
+				terminal_flag = False
+				break
+		return terminal_flag
 
 	def __push_cars_to_road_from_queue(self):
 		"""从路口的神奇车库中启动车辆"""
@@ -113,9 +176,9 @@ class Simulator(object):
 
 	def __add_cars_to_waiting_queue(self):
 		"""add the cars to cross waiting areas-mysterious park"""
-		if str(self.__sys_clock + 1) in self.__schedule_dict.keys():
+		if str(self.__sys_clock + 1) in self.__startTime_schedule_dict.keys():
 			# add car to cross buffer
-			for schedule in self.__schedule_dict[str(self.__sys_clock + 1)]:
+			for schedule in self.__startTime_schedule_dict[str(self.__sys_clock + 1)]:
 				# 起点非终点
 				if len(schedule.road_list) > 0:
 					# id of the first road
