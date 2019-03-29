@@ -2,7 +2,7 @@ import logging
 import sys
 
 from reader import Reader
-from dispatcher import Dispatcher
+from dispatcher_1 import Dispatcher
 from saver import Saver
 from simulator import Simulator
 
