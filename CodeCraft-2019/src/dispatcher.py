@@ -73,9 +73,10 @@ class Dispatcher(object):
 				self.__carSpeed_to_cars[str(car.car_speed)] = [car]
 
 		key_list = list(self.__carSpeed_to_cars.keys())
-		key_list.sort(reverse=True) # 按安排的时间进行升序排序
+		key_list.sort(reverse=True)
+		# 按安排的时间进行升序排序
 		for key in key_list:
-			self.__carSpeed_to_cars[key].sort(key=Car.get_planTime, reverse=False)  # 按速度排序
+			self.__carSpeed_to_cars[key].sort(key=Car.get_planTime, reverse=False)  # 按计划时间升序排序
 			for car in self.__carSpeed_to_cars[key]:
 				self.__crossId_to_sorted_cars[car.car_from].append(car)
 		sorted_cars_matrix = list(self.__crossId_to_sorted_cars.values())

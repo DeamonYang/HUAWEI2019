@@ -15,9 +15,8 @@ from pojo import Schedule
 
 class Simulator(object):
 	""" the simulator of car running system	"""
-	def __init__(self, car_list, road_list, cross_list, schedule_list):
+	def __init__(self, road_list, cross_list, schedule_list):
 
-		self.__car_list = car_list
 		self.__road_dict = {}
 		# the mapping of road id to road
 		for road in road_list:
@@ -51,19 +50,18 @@ class Simulator(object):
 
 	def run(self):
 		# 如果仍有车辆未到达终点
-		while len(self.__arrived_list) != len(self.__car_list):
+		while len(self.__arrived_list) != len(self.__schedule_list):
+
+			self.__add_cars_to_waiting_queue()
 
 			self.__run_cars_in_roads()
 
 			self.__push_cars_to_road_from_queue()
 
-			self.__add_cars_to_waiting_queue()
-
-			print('time:{},arrived count:{}'.format(self.__sys_clock, len(self.__arrived_list)))
 			self.__sys_clock += 1
 
-
-
+			print('clock:{},total-time:{},arrived count:{}'.
+			      format(self.__sys_clock, self.__total_time, len(self.__arrived_list)))
 		# for k in self.__road_dict.keys():
 		# 	while self.__road_dict[k].waiting_queue_pos.qsize() > 0:
 		# 		print(self.__road_dict[k].waiting_queue_pos.get())
@@ -151,6 +149,7 @@ class Simulator(object):
 											curr_cross.cross_id, lane_index, line_index
 										)
 									)
+									self.__total_time += self.__sys_clock - schedule.car.car_planTime
 									self.__del_waiting_relation(schedule.car.car_id)
 								# 前方路口不是终点，可能需要通过路口
 								else:
@@ -316,14 +315,13 @@ class Simulator(object):
 			road_id_list = cross.get_sorted_road_id_list()
 			for road_id in road_id_list:
 				self.__road_dict[road_id].drive_cars_from_waiting_queue(cross.cross_id)
-				# self.__road_dict[road_id].print_lanes()
 		pass
 
 	def __add_cars_to_waiting_queue(self):
 		"""add the cars to cross waiting areas-mysterious park"""
-		if str(self.__sys_clock + 1) in self.__startTime_schedule_dict.keys():
+		if str(self.__sys_clock) in self.__startTime_schedule_dict.keys():
 			# add car to cross buffer
-			for schedule in self.__startTime_schedule_dict[str(self.__sys_clock + 1)]:
+			for schedule in self.__startTime_schedule_dict[str(self.__sys_clock)]:
 				# 起点非终点
 				if len(schedule.road_list) > 0:
 					# id of the first road
@@ -334,7 +332,6 @@ class Simulator(object):
 				# 起点即终点
 				else:
 					self.__arrived_list.append(schedule)
-				# self.__arrived_list.append(schedule)
 
 	def __add_waiting_relation(self, car_id_1, car_id_2):
 		self.__waiting_dict[car_id_1] = car_id_2
