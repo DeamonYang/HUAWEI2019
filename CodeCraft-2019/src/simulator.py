@@ -52,16 +52,17 @@ class Simulator(object):
 	def run(self):
 		# 如果仍有车辆未到达终点
 		while len(self.__arrived_list) != len(self.__car_list):
-			# self.__run_cars_in_roads()
 
-			# # start the cars which are waiting in mysterious park
+			self.__run_cars_in_roads()
+
 			self.__push_cars_to_road_from_queue()
 
 			self.__add_cars_to_waiting_queue()
 
+			print('time:{},arrived count:{}'.format(self.__sys_clock, len(self.__arrived_list)))
 			self.__sys_clock += 1
 
-			print('time:{},arrived count:{}'.format(self.__sys_clock, len(self.__arrived_list)))
+
 
 		# for k in self.__road_dict.keys():
 		# 	while self.__road_dict[k].waiting_queue_pos.qsize() > 0:
@@ -79,6 +80,7 @@ class Simulator(object):
 		unterminal_crosses_id_list = [str(id) for id in unterminal_crosses_id_list]
 		# some crosses are still waiting
 		while len(unterminal_crosses_id_list) > 0:
+			print(self.__sys_clock)
 			terminal_crosses_id_list = []
 			for cross_id in unterminal_crosses_id_list:
 				# current cross to solve
@@ -102,8 +104,8 @@ class Simulator(object):
 		:param cross: 当前路口对象
 		:return 返回驶向当前路口的车是否都终止
 		"""
-		print('run cars by cross:{}'.format(curr_cross))
-		# # 未处理完的道路列表，此处的处理不同于道路上的车全终止，其中包含等待
+		# print('run cars by cross:{}'.format(curr_cross))
+		# # 未处理完的道路列表，此处的处理指的是让车辆调度完毕，可能终止也可能等待下一条道路有空车位
 		sorted_unsolved_road_id_list = curr_cross.get_sorted_road_id_list()
 		while len(sorted_unsolved_road_id_list) > 0:
 			# id of the roads whose cars are terminal or waiting the car which is in waiting status of next road
@@ -241,7 +243,7 @@ class Simulator(object):
 											else:
 												# 空闲车道上最后一辆车及其位置
 												temp_schedule, temp_line_index = self.__road_dict[next_road.road_id].\
-													get_last_schedule_of_lane_out(curr_cross.cross_id, lane_index)
+													get_last_schedule_of_lane_out(curr_cross.cross_id, index_empty_lane)
 												# 下一条道路没有车的情况下可行驶距离
 												s_next_road = v_max_next_road - line_index
 												# 下一车道可行距离大于0,进入下一车道或者等待
@@ -314,7 +316,7 @@ class Simulator(object):
 			road_id_list = cross.get_sorted_road_id_list()
 			for road_id in road_id_list:
 				self.__road_dict[road_id].drive_cars_from_waiting_queue(cross.cross_id)
-				self.__road_dict[road_id].print_lanes()
+				# self.__road_dict[road_id].print_lanes()
 		pass
 
 	def __add_cars_to_waiting_queue(self):
@@ -332,7 +334,7 @@ class Simulator(object):
 				# 起点即终点
 				else:
 					self.__arrived_list.append(schedule)
-				self.__arrived_list.append(schedule)
+				# self.__arrived_list.append(schedule)
 
 	def __add_waiting_relation(self, car_id_1, car_id_2):
 		self.__waiting_dict[car_id_1] = car_id_2
