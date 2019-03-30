@@ -65,10 +65,10 @@ class Simulator(object):
 			print('clock:{},total-time:{},arrived count:{}'.
 			      format(self.__sys_clock, self.__total_time, len(self.__arrived_list)))
 
-			count = 0
-			for road in self.__road_dict.values():
-				count += road.waiting_queue_neg.qsize() + road.waiting_queue_pos.qsize()
-			print(count)
+			# count = 0
+			# for road in self.__road_dict.values():
+			# 	count += road.waiting_queue_neg.qsize() + road.waiting_queue_pos.qsize()
+			# print(count)
 
 	def __run_cars_in_roads(self):
 

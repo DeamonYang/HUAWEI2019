@@ -2,9 +2,9 @@ import logging
 import sys
 
 from reader import Reader
-from dispatcher_1 import Dispatcher
+from dispatcher import Dispatcher
 from saver import Saver
-from simulator_1 import Simulator
+# from simulator_1 import Simulator
 
 # logging.basicConfig(level=logging.DEBUG,
 #                     filename='../logs/CodeCraft-2019.log',
@@ -53,9 +53,9 @@ def main():
 	# to write output file
 	saver = Saver(answer_path, schedule_list)
 	saver.save()
-
-	sm = Simulator(road_list, cross_list, schedule_list)
-	sm.run()
+	#
+	# sm = Simulator(road_list, cross_list, schedule_list)
+	# sm.run()
 
 if __name__ == "__main__":
 	main()
