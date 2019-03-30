@@ -36,6 +36,8 @@ class Simulator(object):
 			self.__startTime_schedule_dict[str(schedule.start_time)].append(schedule)
 		for k in self.__startTime_schedule_dict.keys():   # sort schedule list by car id
 			self.__startTime_schedule_dict[k].sort(key=Schedule.get_car_id)
+			# for v in self.__startTime_schedule_dict[k]:
+			# 	print(v)
 		# the schadule time
 		self.__sys_clock = 0
 		# total run time of all cars
@@ -91,6 +93,7 @@ class Simulator(object):
 					terminal_crosses_id_list.append(cross_id)
 			# refresh 'unterminal_crosses_id_list'
 			unterminal_crosses_id_list = list(set(unterminal_crosses_id_list) - set(terminal_crosses_id_list))
+			# print(unterminal_crosses_id_list)
 			# check deadlock begin
 			if self.__has_dead_lock():
 				raise Exception('has dead lock')
@@ -322,6 +325,7 @@ class Simulator(object):
 		if str(self.__sys_clock) in self.__startTime_schedule_dict.keys():
 			# add car to cross buffer
 			for schedule in self.__startTime_schedule_dict[str(self.__sys_clock)]:
+				# print(schedule)
 				# 起点非终点
 				if len(schedule.road_list) > 0:
 					# id of the first road
