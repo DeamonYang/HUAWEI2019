@@ -224,7 +224,7 @@ class Road(object):
 
 	def get_index_of_empty_lane_out(self, cross_id):
 		"""
-		获得驶出路口的车道中可以进车的车道索引
+		获得驶出路口的车道中可以进过路口车的车道索引
 		:param cross_id: 确定是正向还是反向
 		:return: 可进入车道的索引，如果均没有空车道则返回None
 		"""
@@ -241,6 +241,24 @@ class Road(object):
 			else:
 				if lanes_list[lane_index][-1].is_terminal == False:
 					return lane_index
+		return None
+
+	def get_index_of_abs_empty_lane_out(self, cross_id):
+		"""
+		获得驶出路口的车道中有绝对空车位的车道索引
+		:param cross_id: 确定是正向还是反向
+		:return: 可进入车道的索引，如果均没有空车道则返回None
+		"""
+		lanes_list = []
+		if cross_id == self.road_from:
+			lanes_list = self.lanes_pos
+		elif cross_id == self.road_to:
+			lanes_list = self.lanes_neg
+		else:
+			raise Exception('corss id error')
+		for lane_index in range(len(lanes_list)):
+			if lanes_list[lane_index][-1] == None:
+				return lane_index
 		return None
 
 	def get_last_schedule_of_lane_out(self, cross_id, lane_index):
@@ -323,6 +341,7 @@ class Road(object):
 		:param schedule:
 		:return:
 		"""
+		# print(lane_index, line_index, self.road_channel, self.road_length)
 		schedule.is_terminal = True
 		if cross_id == self.road_to:
 			self.lanes_neg[lane_index][line_index] = schedule
@@ -369,17 +388,21 @@ class Road(object):
 						break
 					else:
 						s_max = min(self.lanes_pos[lane_index][i].car.car_speed, self.road_speed)
-						if s_max > i:
-							break
 						index_of_prev_car = self.get_prev_car_index(
 							cross_id, lane_index, i, s_max
 						)
-						schedule = self.lanes_pos[lane_index][i]
-						schedule.is_terminal = True
-						self.lanes_pos[lane_index][i] = None
 						if index_of_prev_car == None:
-							self.lanes_pos[lane_index][i - s_max] = schedule
+							if s_max > i:
+								break
+							else:
+								schedule = self.lanes_pos[lane_index][i]
+								schedule.is_terminal = True
+								self.lanes_pos[lane_index][i] = None
+								self.lanes_pos[lane_index][i - s_max] = schedule
 						else:
+							schedule = self.lanes_pos[lane_index][i]
+							schedule.is_terminal = True
+							self.lanes_pos[lane_index][i] = None
 							self.lanes_pos[lane_index][index_of_prev_car + 1] = schedule
 		elif cross_id == self.road_from:
 			for i in range(line_index, self.road_length):
@@ -388,17 +411,21 @@ class Road(object):
 						break
 					else:
 						s_max = min(self.lanes_neg[lane_index][i].car.car_speed, self.road_speed)
-						if s_max > i:
-							break
 						index_of_prev_car = self.get_prev_car_index(
 							cross_id, lane_index, i, s_max
 						)
-						schedule = self.lanes_neg[lane_index][i]
-						schedule.is_terminal = True
-						self.lanes_neg[lane_index][i] = None
 						if index_of_prev_car == None:
-							self.lanes_neg[lane_index][i - s_max] = schedule
+							if s_max > i:
+								break
+							else:
+								schedule = self.lanes_neg[lane_index][i]
+								schedule.is_terminal = True
+								self.lanes_neg[lane_index][i] = None
+								self.lanes_neg[lane_index][i - s_max] = schedule
 						else:
+							schedule = self.lanes_neg[lane_index][i]
+							schedule.is_terminal = True
+							self.lanes_neg[lane_index][i] = None
 							self.lanes_neg[lane_index][index_of_prev_car + 1] = schedule
 		else:
 			raise Exception('error cross id')
@@ -406,7 +433,7 @@ class Road(object):
 	def drive_cars_from_waiting_queue(self, cross_id):
 		# 正向
 		if cross_id == self.road_from:
-			index_of_empty_lane = self.get_index_of_empty_lane_out(cross_id)
+			index_of_empty_lane = self.get_index_of_abs_empty_lane_out(cross_id)
 			while index_of_empty_lane != None and self.waiting_queue_pos.qsize() > 0:
 				schedule = self.waiting_queue_pos.get()
 				lane = self.lanes_pos[index_of_empty_lane]
@@ -419,9 +446,9 @@ class Road(object):
 				schedule.is_terminal = True
 				# 驱动车库的车驶向正向车道
 				self.add_car_in_road(cross_id, index_of_empty_lane, index_of_prev_car + 1, schedule)
-				index_of_empty_lane = self.get_index_of_empty_lane_out(cross_id)
+				index_of_empty_lane = self.get_index_of_abs_empty_lane_out(cross_id)
 		elif cross_id == self.road_to:
-			index_of_empty_lane = self.get_index_of_empty_lane_out(cross_id)
+			index_of_empty_lane = self.get_index_of_abs_empty_lane_out(cross_id)
 			while index_of_empty_lane != None and self.waiting_queue_neg.qsize() > 0:
 				schedule = self.waiting_queue_neg.get()
 				lane = self.lanes_neg[index_of_empty_lane]
@@ -434,7 +461,7 @@ class Road(object):
 				schedule.is_terminal = True
 				# 驱动车库的车驶向反向车道
 				self.add_car_in_road(cross_id, index_of_empty_lane, index_of_prev_car + 1, schedule)
-				index_of_empty_lane = self.get_index_of_empty_lane_out(cross_id)
+				index_of_empty_lane = self.get_index_of_abs_empty_lane_out(cross_id)
 		else:
 			raise Exception('Cross id Error')
 

@@ -54,8 +54,8 @@ def main():
 	saver = Saver(answer_path, schedule_list)
 	saver.save()
 
-	# sm = Simulator(road_list, cross_list, schedule_list)
-	# sm.run()
+	sm = Simulator(road_list, cross_list, schedule_list)
+	sm.run()
 
 if __name__ == "__main__":
 	main()

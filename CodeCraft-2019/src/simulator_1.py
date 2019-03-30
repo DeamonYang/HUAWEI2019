@@ -65,10 +65,15 @@ class Simulator(object):
 			print('clock:{},total-time:{},arrived count:{}'.
 			      format(self.__sys_clock, self.__total_time, len(self.__arrived_list)))
 
+			count = 0
+			for road in self.__road_dict.values():
+				count += road.waiting_queue_neg.qsize() + road.waiting_queue_pos.qsize()
+			print(count)
+
 	def __run_cars_in_roads(self):
 
 		# 遍历道路上车辆由第一排向最后一排进行遍历，初始化每辆车的行驶状态
-		for road_id in self.__road_dict:
+		for road_id in self.__road_dict.keys():
 			self.__road_dict[road_id].init_cars_status()
 
 		# 初始化车辆没跑完的路口的id列表，并升序排序
@@ -77,7 +82,7 @@ class Simulator(object):
 		unterminal_crosses_id_list = [str(id) for id in unterminal_crosses_id_list]
 		# some crosses are still waiting
 		while len(unterminal_crosses_id_list) > 0:
-			print(self.__sys_clock)
+			print('before:', len(unterminal_crosses_id_list))
 			terminal_crosses_id_list = []
 			for cross_id in unterminal_crosses_id_list:
 				# current cross to solve
@@ -90,7 +95,8 @@ class Simulator(object):
 					terminal_crosses_id_list.append(cross_id)
 			# refresh 'unterminal_crosses_id_list'
 			unterminal_crosses_id_list = list(set(unterminal_crosses_id_list) - set(terminal_crosses_id_list))
-			# print(unterminal_crosses_id_list)
+
+			print('after:', len(unterminal_crosses_id_list))
 			# check deadlock begin
 			if self.__has_dead_lock():
 				raise Exception('has dead lock')
@@ -113,182 +119,155 @@ class Simulator(object):
 				schedule, line_index, lane_index = self.__road_dict[curr_road_id].get_first_waiting_schedule_in(
 					curr_cross.cross_id, line_index
 				)
-				# 该道路调度未完成，仍有等待行驶的车辆
+				# 该道路调度未完成，仍有等待过路口的车辆
 				if schedule != None:
-					# 当前道路最大车速
-					v_max_curr_road = min(schedule.car.car_speed, self.__road_dict[curr_road_id].road_speed)
-					# 首先判断前方是否有车辆阻挡
-					# 获取指定路程范围内前车位置
-					index_of_prev_car = self.__road_dict[curr_road_id].get_prev_car_index(
-						curr_cross.cross_id, lane_index, line_index, v_max_curr_road
-					)
-					# 前方有车阻挡
-					if index_of_prev_car != None:
-						# 此处前车的状态必定是终止状态，直接行驶至前车后
-						# 因为是从最前排车开始调度，前排的车如果等待过马路会跳出调度该道路
-						self.__road_dict[curr_road_id].drive_appointed_car(
-							curr_cross.cross_id, lane_index, line_index, index_of_prev_car + 1
+					# 获取下一个要走的道路对象,如果为None则表示已经是最后一条道路即前方为终点
+					next_road = schedule.get_next_road()
+					# 前方路口为终点
+					if next_road == None:
+						# 从道路上移除该车，并加入到已到达列表
+						self.__arrived_list.append(
+							self.__road_dict[curr_road_id].remove_car_in_road(
+								curr_cross.cross_id, lane_index, line_index
+							)
 						)
+						self.__total_time += self.__sys_clock - schedule.car.car_planTime
 						self.__del_waiting_relation(schedule.car.car_id)
-					# 前方无车阻挡
+					# 前方路口不是终点，可能需要通过路口
 					else:
-						# 可行车速大于当前道路剩余的路程，可能需要过路口
-						if line_index < v_max_curr_road:
-							# 获取下一个要走的道路对象,如果为None则表示已经是最后一条道路即前方为终点
-							next_road = schedule.get_next_road()
-							# 前方路口为终点
-							if next_road == None:
-								# 从道路上移除该车，并加入到已到达列表
-								self.__arrived_list.append(
-									self.__road_dict[curr_road_id].remove_car_in_road(
-										curr_cross.cross_id, lane_index, line_index
+						# 获取下一道路可行车速
+						v_max_next_road = min(schedule.car.car_speed, next_road.road_speed)
+						# 下条道路可行车速不超过当前道路可行距离,不通过路口,行驶至第一排
+						if v_max_next_road <= line_index:
+							self.__road_dict[curr_road_id].drive_appointed_car(
+								curr_cross.cross_id, lane_index, line_index, 0
+							)
+							self.__del_waiting_relation(schedule.car.car_id)
+						# 下一道路可行车速够大，满足过路口条件
+						else:
+							# 冲突判定, 与当前车冲突的车辆的id
+							conflict_car_id = None
+							# 获取当前车的转弯编号
+							curr_dir = curr_cross.get_direction(curr_road_id, next_road.road_id)
+							# 直行
+							if curr_dir == 2:
+								pass
+							# 左转
+							elif curr_dir == 1:
+								prev_road_id = curr_cross.get_prev_road_id(curr_road_id)
+								if prev_road_id != '-1':
+									prev_road_first_schedule, _, _ = \
+										self.__road_dict[prev_road_id].get_first_waiting_schedule_in(
+										curr_cross.cross_id, 0
 									)
-								)
-								self.__total_time += self.__sys_clock - schedule.car.car_planTime
-								self.__del_waiting_relation(schedule.car.car_id)
-							# 前方路口不是终点，可能需要通过路口
+									if prev_road_first_schedule != None:
+										temp_road = prev_road_first_schedule.get_next_road()
+										if temp_road == None:   # 终点直行
+											conflict_car_id = prev_road_first_schedule.car.car_id
+										else:
+											temp_dir = curr_cross.get_direction(prev_road_id, temp_road.road_id)
+											if temp_dir == 2:
+												conflict_car_id = prev_road_first_schedule.car.car_id
+							# 右转
+							elif curr_dir == 3:
+								# 判断是否有直行驶入
+								next_road_id = curr_cross.get_next_road_id(curr_road_id)
+								if next_road_id != '-1':
+									next_road_first_schedule, _, _ = \
+										self.__road_dict[next_road_id].get_first_waiting_schedule_in(
+											curr_cross.cross_id, 0
+										)
+									if next_road_first_schedule != None:
+										temp_road = next_road_first_schedule.get_next_road()
+										if temp_road == None:   # 去终点为直行
+											conflict_car_id = next_road_first_schedule.car.car_id
+										else:
+											temp_dir = curr_cross.get_direction(next_road_id, temp_road.road_id)
+											if temp_dir == 2:
+												conflict_car_id = next_road_first_schedule.car.car_id
+								# 判断是否有左转驶入
+								oppo_road_id = curr_cross.get_oppo_road_id(curr_road_id)
+								if oppo_road_id != '-1':
+									oppo_road_first_schedule, _, _ = \
+										self.__road_dict[oppo_road_id].get_first_waiting_schedule_in(
+											curr_cross.cross_id, 0
+										)
+									if oppo_road_first_schedule != None:
+										temp_road = oppo_road_first_schedule.get_next_road()
+										if temp_road != None:
+											temp_dir = curr_cross.get_direction(oppo_road_id, temp_road.road_id)
+											if temp_dir == 1:
+												conflict_car_id = oppo_road_first_schedule.car.car_id
 							else:
-								# 获取下一道路可行车速
-								v_max_next_road = min(schedule.car.car_speed, next_road.road_speed)
-								# 下条道路可行车速不超过当前道路可行距离,不通过路口,行驶至第一排
-								if v_max_next_road <= line_index:
+								raise Exception('direction error')
+
+							# 发生冲突，跳过当前车道调度
+							if conflict_car_id != None:
+								# 冲突车辆被下一道路堵死,则当前车也被堵死
+								self.__add_waiting_relation(schedule.car.car_id, conflict_car_id)
+								break
+							# 没有冲突，看下一道路车辆状况
+							else:
+								# 出路口方向的第一个空车道
+								index_empty_lane = self.__road_dict[next_road.road_id].\
+									get_index_of_empty_lane_out(curr_cross.cross_id)
+								# 無空闲车道（道路上满车且所有车都进入终止状态）
+								if index_empty_lane == None:
+									# 行驶至第一排
 									self.__road_dict[curr_road_id].drive_appointed_car(
 										curr_cross.cross_id, lane_index, line_index, 0
 									)
 									self.__del_waiting_relation(schedule.car.car_id)
-								# 下一道路可行车速够大，满足过路口条件
+								# 有空闲车道
 								else:
-									# 冲突判定, 与当前车冲突的车辆的id
-									conflict_car_id = None
-									# 获取当前车的转弯编号
-									curr_dir = curr_cross.get_direction(curr_road_id, next_road.road_id)
-									# 直行
-									if curr_dir == 2:
-										pass
-									# 左转
-									elif curr_dir == 1:
-										prev_road_id = curr_cross.get_prev_road_id(curr_road_id)
-										if prev_road_id != '-1':
-											prev_road_first_schedule, _, _ = \
-												self.__road_dict[prev_road_id].get_first_waiting_schedule_in(
-												curr_cross.cross_id, 0
+									# 空闲车道上最后一辆车及其位置
+									temp_schedule, temp_line_index = self.__road_dict[next_road.road_id].\
+										get_last_schedule_of_lane_out(curr_cross.cross_id, index_empty_lane)
+									# 下一条道路没有车的情况下可行驶距离
+									s_next_road = v_max_next_road - line_index
+									# 下一车道可行距离大于0,进入下一车道或者等待
+									if s_next_road > 0:
+										# 空闲车道没有车或者空闲车道上的车没有挡住当前车进入
+										if temp_schedule == None or s_next_road<next_road.road_length-temp_line_index:
+											# 过路口并行驶最大距离
+											self.__road_dict[curr_road_id].remove_car_in_road(
+												curr_cross.cross_id, lane_index, line_index
 											)
-											if prev_road_first_schedule != None:
-												temp_road = prev_road_first_schedule.get_next_road()
-												if temp_road == None:   # 终点直行
-													conflict_car_id = prev_road_first_schedule.car.car_id
-												else:
-													temp_dir = curr_cross.get_direction(prev_road_id, temp_road.road_id)
-													if temp_dir == 2:
-														conflict_car_id = prev_road_first_schedule.car.car_id
-									# 右转
-									elif curr_dir == 3:
-										# 判断是否有直行驶入
-										next_road_id = curr_cross.get_next_road_id(curr_road_id)
-										if next_road_id != '-1':
-											next_road_first_schedule, _, _ = \
-												self.__road_dict[next_road_id].get_first_waiting_schedule_in(
-													curr_cross.cross_id, 0
-												)
-											if next_road_first_schedule != None:
-												temp_road = next_road_first_schedule.get_next_road()
-												if temp_road == None:   # 去终点为直行
-													conflict_car_id = next_road_first_schedule.car.car_id
-												else:
-													temp_dir = curr_cross.get_direction(next_road_id, temp_road.road_id)
-													if temp_dir == 2:
-														conflict_car_id = next_road_first_schedule.car.car_id
-										# 判断是否有左转驶入
-										oppo_road_id = curr_cross.get_oppo_road_id(curr_road_id)
-										if oppo_road_id != '-1':
-											oppo_road_first_schedule, _, _ = \
-												self.__road_dict[oppo_road_id].get_first_waiting_schedule_in(
-													curr_cross.cross_id, 0
-												)
-											if oppo_road_first_schedule != None:
-												temp_road = oppo_road_first_schedule.get_next_road()
-												if temp_road != None:
-													temp_dir = curr_cross.get_direction(oppo_road_id, temp_road.road_id)
-													if temp_dir == 1:
-														conflict_car_id = oppo_road_first_schedule.car.car_id
-									else:
-										raise Exception('direction error')
-
-									# 发生冲突，跳过当前车道调度，下一循环再次调度或者不再调度
-									if conflict_car_id != None:
-										# 冲突车辆被下一道路堵死,则当前车也被堵死
-										if conflict_car_id in self.__waiting_dict.keys():
-											self.__add_waiting_relation(schedule.car.car_id, conflict_car_id)
-										break
-									# 没有冲突，看下一道路车辆状况
-									else:
-										# 出路口方向的第一个空车道
-										index_empty_lane = self.__road_dict[next_road.road_id].\
-											get_index_of_empty_lane_out(curr_cross.cross_id)
-										# 無空闲车道（道路上满车且所有车都进入终止状态）
-										if index_empty_lane == None:
-											# 行驶至第一排
-											self.__road_dict[curr_road_id].drive_appointed_car(
-												curr_cross.cross_id, lane_index, line_index, 0
+											schedule.update_curr_road_index()
+											self.__road_dict[next_road.road_id].add_car_in_road(
+												curr_cross.cross_id, index_empty_lane,
+												next_road.road_length-s_next_road, schedule
 											)
 											self.__del_waiting_relation(schedule.car.car_id)
-										# 有空闲车道
+										# 空闲车道上最后一辆车挡住当前车驶入
 										else:
-											# 空闲车道上最后一辆车及其位置
-											temp_schedule, temp_line_index = self.__road_dict[next_road.road_id].\
-												get_last_schedule_of_lane_out(curr_cross.cross_id, index_empty_lane)
-											# 下一条道路没有车的情况下可行驶距离
-											s_next_road = v_max_next_road - line_index
-											# 下一车道可行距离大于0,进入下一车道或者等待
-											if s_next_road > 0:
-												# 空闲车道没有车或者空闲车道上的车没有挡住当前车进入
-												if temp_schedule == None or s_next_road<next_road.road_length-temp_line_index:
-													# 过路口并行驶最大距离
-													self.__road_dict[curr_road_id].remove_car_in_road(
-														curr_cross.cross_id, lane_index, line_index
-													)
-													schedule.update_curr_road_index()
-													self.__road_dict[next_road.road_id].add_car_in_road(
-														curr_cross.cross_id, index_empty_lane,
-														next_road.road_length-s_next_road, schedule
-													)
-													self.__del_waiting_relation(schedule.car.car_id)
-												# 空闲车道上最后一辆车挡住当前车驶入
-												else:
-													# 挡道车辆为终止状态则行驶至其后
-													if temp_schedule.is_terminal == True:
-														# 过路口并行驶至前车之后
-														self.__road_dict[curr_road_id].remove_car_in_road(
-															curr_cross.cross_id, lane_index, line_index
-														)
-														schedule.update_curr_road_index()
-														self.__road_dict[next_road.road_id].add_car_in_road(
-															curr_cross.cross_id, index_empty_lane,
-															temp_line_index + 1, schedule
-														)
-														self.__del_waiting_relation(schedule.car.car_id)
-													# 挡道车为等待状态则保持不动
-													else:
-														# 当前车保持等待状态，该路口的调度不再调度该道路
-														# first waiting schedule of next road
-														fwsonr, _, _ = self.__road_dict[next_road.road_id].\
-															get_first_waiting_schedule_out(curr_cross.cross_id, 0)
-														# 新增等待关系
-														self.__add_waiting_relation(schedule.car.car_id, fwsonr.car.car_id)
-														break
-											# 下一车道可行距离小于等于0,驶向当前车道第一排
-											else:
-												self.__road_dict[curr_road_id].drive_appointed_car(
-													curr_cross.cross_id, lane_index, line_index, 0
+											# 挡道车辆为终止状态则行驶至其后
+											if temp_schedule.is_terminal == True:
+												# 过路口并行驶至前车之后
+												self.__road_dict[curr_road_id].remove_car_in_road(
+													curr_cross.cross_id, lane_index, line_index
+												)
+												schedule.update_curr_road_index()
+												self.__road_dict[next_road.road_id].add_car_in_road(
+													curr_cross.cross_id, index_empty_lane,
+													temp_line_index + 1, schedule
 												)
 												self.__del_waiting_relation(schedule.car.car_id)
-						# 一定不需要过路口且无前车阻挡
-						else:
-							# 前进 v_max_curr_road 单位
-							self.__road_dict[curr_road_id].drive_appointed_car(
-								curr_cross.cross_id, lane_index, line_index, line_index - v_max_curr_road
-							)
-							self.__del_waiting_relation(schedule.car.car_id)
+											# 挡道车为等待状态则保持不动
+											else:
+												# 当前车保持等待状态
+												# first waiting schedule of next road
+												fwsonr, _, _ = self.__road_dict[next_road.road_id].\
+													get_first_waiting_schedule_out(curr_cross.cross_id, 0)
+												# 新增等待关系
+												self.__add_waiting_relation(schedule.car.car_id, fwsonr.car.car_id)
+												break
+									# 下一车道可行距离小于等于0,驶向当前车道第一排
+									else:
+										self.__road_dict[curr_road_id].drive_appointed_car(
+											curr_cross.cross_id, lane_index, line_index, 0
+										)
+										self.__del_waiting_relation(schedule.car.car_id)
 		# check the status of cars which go to current cross
 		# if all cars in the 4 roads become terminal ,return true. If not, return False
 		terminal_flag = True

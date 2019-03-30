@@ -71,7 +71,7 @@ class Simulator(object):
 	def __run_cars_in_roads(self):
 
 		# 遍历道路上车辆由第一排向最后一排进行遍历，初始化每辆车的行驶状态
-		for road_id in self.__road_dict:
+		for road_id in self.__road_dict.keys():
 			self.__road_dict[road_id].init_cars_status()
 
 		# 初始化车辆没跑完的路口的id列表，并升序排序
@@ -93,6 +93,10 @@ class Simulator(object):
 					terminal_crosses_id_list.append(cross_id)
 			# refresh 'unterminal_crosses_id_list'
 			unterminal_crosses_id_list = list(set(unterminal_crosses_id_list) - set(terminal_crosses_id_list))
+			unterminal_crosses_id_list = [int(id) for id in unterminal_crosses_id_list]
+			unterminal_crosses_id_list.sort()
+			unterminal_crosses_id_list = [str(id) for id in unterminal_crosses_id_list]
+
 			# print(unterminal_crosses_id_list)
 			# check deadlock begin
 			if self.__has_dead_lock():
