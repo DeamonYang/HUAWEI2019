@@ -95,7 +95,9 @@ class Simulator(object):
 					terminal_crosses_id_list.append(cross_id)
 			# refresh 'unterminal_crosses_id_list'
 			unterminal_crosses_id_list = list(set(unterminal_crosses_id_list) - set(terminal_crosses_id_list))
-
+			unterminal_crosses_id_list = [int(id) for id in unterminal_crosses_id_list]
+			unterminal_crosses_id_list.sort()
+			unterminal_crosses_id_list = [str(id) for id in unterminal_crosses_id_list]
 			print('after:', len(unterminal_crosses_id_list))
 			# check deadlock begin
 			if self.__has_dead_lock():
